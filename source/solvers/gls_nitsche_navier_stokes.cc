@@ -41,7 +41,7 @@ GLSNitscheNavierStokesSolver<dim, spacedim>::GLSNitscheNavierStokesSolver(
   , solid(this->simulation_parameters.nitsche,
           this->triangulation,
           p_nsparam.fem_parameters.velocity_order)
-  , fe_ht(1)
+//, fe_ht(1)
 {}
 
 template <int dim, int spacedim>
@@ -333,7 +333,7 @@ GLSNitscheNavierStokesSolver<dim, spacedim>::solve()
         }
 
       this->postprocess(false);
-      // postprocess_ht();
+
       if (this->simulation_parameters.nitsche->calculate_force_on_solid &&
           dim == 2 && spacedim == 3)
         {
@@ -349,18 +349,10 @@ GLSNitscheNavierStokesSolver<dim, spacedim>::solve()
         }
 
       this->finish_time_step();
-      if (this->simulation_parameters.multiphysics.heat_transfer)
-        {
-          //          finish_time_step_ht();
-        }
     }
   if (this->simulation_parameters.test.enabled)
     solid.print_particle_positions();
   this->finish_simulation();
-  if (this->simulation_parameters.multiphysics.heat_transfer)
-    {
-      //      finish_ht();
-    }
 }
 
 template <int dim, int spacedim>
