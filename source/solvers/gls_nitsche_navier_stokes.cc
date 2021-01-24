@@ -24,6 +24,9 @@
 
 #include <deal.II/particles/data_out.h>
 
+#include <boost/archive/text_iarchive.hpp>
+#include <boost/archive/text_oarchive.hpp>
+
 #include <core/solutions_output.h>
 #include <core/utilities.h>
 
@@ -41,7 +44,6 @@ GLSNitscheNavierStokesSolver<dim, spacedim>::GLSNitscheNavierStokesSolver(
   , solid(this->simulation_parameters.nitsche,
           this->triangulation,
           p_nsparam.fem_parameters.velocity_order)
-//, fe_ht(1)
 {}
 
 template <int dim, int spacedim>
@@ -426,6 +428,39 @@ GLSNitscheNavierStokesSolver<dim, spacedim>::assemble_rhs(
   this->GLSNavierStokesSolver<spacedim>::assemble_rhs(time_stepping_method);
 
   assemble_nitsche_restriction<false>();
+}
+
+template <int dim, int spacedim>
+void
+GLSNitscheNavierStokesSolver<dim, spacedim>::write_checkpoint()
+{
+  TimerOutput::Scope timer(this->computing_timer, "write_checkpoint");
+
+  this->pcout << "Writing restart file" << std::endl;
+
+  std::string prefix = this->simulation_parameters.restart_parameters.filename;
+  if (Utilities::MPI::this_mpi_process(this->mpi_communicator) == 0)
+    {
+      this->simulation_control->save(prefix);
+      pvdhandler_solid_particles.save(prefix);
+    }
+
+  std::shared_ptr<Particles::ParticleHandler<spacedim>> solid_ph =
+    solid.get_solid_particle_handler();
+
+  this->triangulation->signals.pre_distributed_save.connect(std::bind(
+    &Particles::ParticleHandler<spacedim>::register_store_callback_function,
+    solid_ph));
+
+  std::ostringstream            oss;
+  boost::archive::text_oarchive oa(oss, boost::archive::no_header);
+  oa << *solid_ph;
+  //  this->triangulation.save(prefix + ".triangulation");
+
+  // Write additional particle information for deserialization
+  std::string   particle_filename = prefix + ".particles";
+  std::ofstream output(particle_filename.c_str());
+  output << oss.str() << std::endl;
 }
 
 // Pre-compile the 2D and 3D Navier-Stokes solver to ensure that the library

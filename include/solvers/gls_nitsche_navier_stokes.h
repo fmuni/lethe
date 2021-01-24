@@ -100,32 +100,14 @@ private:
   /**
    * @brief Write a gls_nitsche simulation checkpointing to allow for gls_nitsche simulation restart
    */
-  //  virtual void
-  //  write_checkpoint();
+  virtual void
+  write_checkpoint();
 
   SolidBase<dim, spacedim> solid;
   PVDHandler               pvdhandler_solid_triangulation;
   PVDHandler               pvdhandler_solid_particles;
 
-
   TableHandler solid_forces_table;
-
-  /**
-   * @brief Temporary - Addition for Heat Transfer solving - test in subfunction before global multiphysics implementation
-   */
-  //  IndexSet                       locally_owned_dofs_ht;
-  //  IndexSet                       locally_relevant_dofs_ht;
-  //  FE_Q<spacedim>                 fe_ht;
-  //  DoFHandler<spacedim>           dof_handler_ht;
-  //  TrilinosWrappers::SparseMatrix system_matrix_ht;
-  //  SparsityPattern                sparsity_pattern_ht;
-  //  AffineConstraints<double>      zero_constraints_ht;
-
-
-
-  //  TrilinosWrappers::MPI::Vector solution_ht_m1; // minus 1
-  //  TrilinosWrappers::MPI::Vector solution_ht_m2; // minus 2
-  //  TrilinosWrappers::MPI::Vector solution_ht_m3; // minus 3
 };
 
 
