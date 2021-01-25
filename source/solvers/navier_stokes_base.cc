@@ -66,6 +66,12 @@ NavierStokesBase<dim, VectorType, DofsType>::NavierStokesBase(
   , velocity_fem_degree(p_nsparam.fem_parameters.velocity_order)
   , pressure_fem_degree(p_nsparam.fem_parameters.pressure_order)
   , number_quadrature_points(p_nsparam.fem_parameters.velocity_order + 1)
+  , velocity_mapping(this->velocity_fem_degree,
+                     this->simulation_parameters.fem_parameters.qmapping_all)
+  , pressure_mapping(this->pressure_fem_degree,
+                     this->simulation_parameters.fem_parameters.qmapping_all)
+  , cell_quadrature(this->number_quadrature_points + 1)
+  , face_quadrature(this->number_quadrature_points + 1)
 {
   this->pcout.set_condition(
     Utilities::MPI::this_mpi_process(this->mpi_communicator) == 0);
@@ -558,9 +564,6 @@ NavierStokesBase<dim, VectorType, DofsType>::refine_mesh_kelly()
   TimerOutput::Scope t(this->computing_timer, "refine");
 
   Vector<float>       estimated_error_per_cell(tria.n_active_cells());
-  const MappingQ<dim> mapping(
-    this->velocity_fem_degree,
-    this->simulation_parameters.fem_parameters.qmapping_all);
   const FEValuesExtractors::Vector velocity(0);
   const FEValuesExtractors::Scalar pressure(dim);
   auto &                           present_solution = this->present_solution;
@@ -568,9 +571,9 @@ NavierStokesBase<dim, VectorType, DofsType>::refine_mesh_kelly()
       Parameters::MeshAdaptation::Variable::pressure)
     {
       KellyErrorEstimator<dim>::estimate(
-        mapping,
+        this->velocity_mapping,
         this->dof_handler,
-        QGauss<dim - 1>(this->number_quadrature_points + 1),
+        this->face_quadrature,
         typename std::map<types::boundary_id, const Function<dim, double> *>(),
         present_solution,
         estimated_error_per_cell,
@@ -580,9 +583,9 @@ NavierStokesBase<dim, VectorType, DofsType>::refine_mesh_kelly()
            Parameters::MeshAdaptation::Variable::velocity)
     {
       KellyErrorEstimator<dim>::estimate(
-        mapping,
+        this->velocity_mapping,
         this->dof_handler,
-        QGauss<dim - 1>(this->number_quadrature_points + 1),
+        this->face_quadrature,
         typename std::map<types::boundary_id, const Function<dim, double> *>(),
         present_solution,
         estimated_error_per_cell,
@@ -914,15 +917,12 @@ NavierStokesBase<dim, VectorType, DofsType>::set_nodal_values()
 {
   const FEValuesExtractors::Vector velocities(0);
   const FEValuesExtractors::Scalar pressure(dim);
-  const MappingQ<dim>              mapping(
-    this->velocity_fem_degree,
-    this->simulation_parameters.fem_parameters.qmapping_all);
-  VectorTools::interpolate(mapping,
+  VectorTools::interpolate(this->velocity_mapping,
                            this->dof_handler,
                            this->simulation_parameters.initial_condition->uvwp,
                            this->newton_update,
                            this->fe.component_mask(velocities));
-  VectorTools::interpolate(mapping,
+  VectorTools::interpolate(this->velocity_mapping,
                            this->dof_handler,
                            this->simulation_parameters.initial_condition->uvwp,
                            this->newton_update,
@@ -1029,9 +1029,6 @@ NavierStokesBase<dim, VectorType, DofsType>::write_output_results(
   const VectorType &solution)
 {
   TimerOutput::Scope  t(this->computing_timer, "output");
-  const MappingQ<dim> mapping(
-    this->velocity_fem_degree,
-    simulation_parameters.fem_parameters.qmapping_all);
 
   const std::string  folder        = simulation_control->get_output_path();
   const std::string  solution_name = simulation_control->get_output_name();
@@ -1158,7 +1155,7 @@ NavierStokesBase<dim, VectorType, DofsType>::write_output_results(
 
   // Build the patches and write the output
 
-  data_out.build_patches(mapping,
+  data_out.build_patches(this->velocity_mapping,
                          subdivision,
                          DataOut<dim>::curved_inner_cells);
 

@@ -69,9 +69,6 @@ GLSNavierStokesSolver<dim>::setup_dofs_fd()
   DoFTools::extract_locally_relevant_dofs(this->dof_handler,
                                           this->locally_relevant_dofs);
 
-  const MappingQ<dim> mapping(
-    this->velocity_fem_degree,
-    this->simulation_parameters.fem_parameters.qmapping_all);
   FEValuesExtractors::Vector velocities(0);
 
   // Non-zero constraints
@@ -89,7 +86,7 @@ GLSNavierStokesSolver<dim>::setup_dofs_fd()
             BoundaryConditions::BoundaryType::noslip)
           {
             VectorTools::interpolate_boundary_values(
-              mapping,
+              this->velocity_mapping,
               this->dof_handler,
               this->simulation_parameters.boundary_conditions.id[i_bc],
               dealii::Functions::ZeroFunction<dim>(dim + 1),
@@ -112,7 +109,7 @@ GLSNavierStokesSolver<dim>::setup_dofs_fd()
                  BoundaryConditions::BoundaryType::function)
           {
             VectorTools::interpolate_boundary_values(
-              mapping,
+              this->velocity_mapping,
               this->dof_handler,
               this->simulation_parameters.boundary_conditions.id[i_bc],
               NavierStokesFunctionDefined<dim>(
@@ -180,7 +177,7 @@ GLSNavierStokesSolver<dim>::setup_dofs_fd()
              // || Parameters::function)
           {
             VectorTools::interpolate_boundary_values(
-              mapping,
+              this->velocity_mapping,
               this->dof_handler,
               this->simulation_parameters.boundary_conditions.id[i_bc],
               dealii::Functions::ZeroFunction<dim>(dim + 1),
@@ -277,18 +274,14 @@ GLSNavierStokesSolver<dim>::assembleGLS()
   double viscosity = this->simulation_parameters.physical_properties.viscosity;
   Function<dim> *l_forcing_function = this->forcing_function;
 
-  QGauss<dim>         quadrature_formula(this->number_quadrature_points);
-  const MappingQ<dim> mapping(
-    this->velocity_fem_degree,
-    this->simulation_parameters.fem_parameters.qmapping_all);
-  FEValues<dim>                    fe_values(mapping,
+  FEValues<dim>                    fe_values(this->velocity_mapping,
                           this->fe,
-                          quadrature_formula,
+                          this->cell_quadrature,
                           update_values | update_quadrature_points |
                             update_JxW_values | update_gradients |
                             update_hessians);
   const unsigned int               dofs_per_cell = this->fe.dofs_per_cell;
-  const unsigned int               n_q_points    = quadrature_formula.size();
+  const unsigned int               n_q_points    = this->cell_quadrature.size();
   const FEValuesExtractors::Vector velocities(0);
   const FEValuesExtractors::Scalar pressure(dim);
   FullMatrix<double>               local_matrix(dofs_per_cell, dofs_per_cell);
@@ -875,17 +868,13 @@ GLSNavierStokesSolver<dim>::assemble_L2_projection()
 {
   system_matrix    = 0;
   this->system_rhs = 0;
-  QGauss<dim>         quadrature_formula(this->number_quadrature_points);
-  const MappingQ<dim> mapping(
-    this->velocity_fem_degree,
-    this->simulation_parameters.fem_parameters.qmapping_all);
-  FEValues<dim>               fe_values(mapping,
+  FEValues<dim>               fe_values(this->velocity_mapping,
                           this->fe,
-                          quadrature_formula,
+                          this->cell_quadrature,
                           update_values | update_quadrature_points |
                             update_JxW_values);
   const unsigned int          dofs_per_cell = this->fe.dofs_per_cell;
-  const unsigned int          n_q_points    = quadrature_formula.size();
+  const unsigned int          n_q_points    = this->cell_quadrature.size();
   FullMatrix<double>          local_matrix(dofs_per_cell, dofs_per_cell);
   Vector<double>              local_rhs(dofs_per_cell);
   std::vector<Vector<double>> initial_velocity(n_q_points,

@@ -32,6 +32,8 @@
 
 #include <deal.II/fe/fe_q.h>
 
+#include <deal.II/fe/mapping_q.h>
+
 #include <deal.II/lac/trilinos_sparse_matrix.h>
 #include <deal.II/lac/trilinos_vector.h>
 
@@ -61,6 +63,10 @@ public:
     , solution_transfer_m1(dof_handler)
     , solution_transfer_m2(dof_handler)
     , solution_transfer_m3(dof_handler)
+    , temperature_mapping(fe.degree, simulation_parameters.fem_parameters.qmapping_all)
+    , cell_quadrature(fe.degree)
+    , face_quadrature(fe.degree + 1)
+    , error_quadrature(fe.degree + 2)
   {}
 
   /**
@@ -246,9 +252,14 @@ private:
   FE_Q<dim>                          fe;
   ConvergenceTable                   error_table;
 
+  //Mapping and Quadrature
+  MappingQ<dim>   temperature_mapping;
+  QGauss<dim>   cell_quadrature;
+  QGauss<dim-1> face_quadrature;
+  QGauss<dim>   error_quadrature;
 
 
-  // Solution storage:
+    // Solution storage:
   IndexSet locally_owned_dofs;
   IndexSet locally_relevant_dofs;
 

@@ -474,6 +474,13 @@ protected:
   const unsigned int pressure_fem_degree;
   unsigned int       number_quadrature_points;
 
+  // Mappings and Quadratures
+  const MappingQ<dim>   velocity_mapping;
+  const MappingQ<dim>   pressure_mapping;
+  const QGauss<dim>     cell_quadrature;
+  const QGauss<dim - 1> face_quadrature;
+
+
   // Multiphysics interface
   std::shared_ptr<MultiphysicsInterface<dim>> multiphysics;
 

@@ -105,9 +105,8 @@ HeatTransfer<dim>::assemble_system(
   auto &source_term = simulation_parameters.sourceTerm->heat_transfer_source;
   source_term.set_time(simulation_control->get_current_time());
 
-  const QGauss<dim> quadrature_formula(fe.degree + 1);
   FEValues<dim>     fe_values_ht(fe,
-                             quadrature_formula,
+                             this->cell_quadrature,
                              update_values | update_gradients |
                                update_quadrature_points | update_JxW_values |
                                update_hessians);
@@ -119,24 +118,20 @@ HeatTransfer<dim>::assemble_system(
   FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
   Vector<double>     cell_rhs(dofs_per_cell);
   std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
-  const unsigned int                   n_q_points = quadrature_formula.size();
+  const unsigned int                   n_q_points = this->cell_quadrature.size();
   std::vector<double>                  source_term_values(n_q_points);
 
-
-  const MappingQ<dim> mapping(
-    fe.degree, simulation_parameters.fem_parameters.qmapping_all);
 
   const DoFHandler<dim> *dof_handler_fluid =
     multiphysics->get_dof_handler(PhysicsID::fluid_dynamics);
   FEValues<dim> fe_values_flow(dof_handler_fluid->get_fe(),
-                               quadrature_formula,
+                               this->cell_quadrature,
                                update_values | update_quadrature_points |
                                  update_gradients);
 
   // FaceValues for Robin boundary condition
-  QGauss<dim - 1>   face_quadrature_formula(fe.degree + 1);
   FEFaceValues<dim> fe_face_values_ht(fe,
-                                      face_quadrature_formula,
+                                      this->face_quadrature,
                                       update_values | update_quadrature_points |
                                         update_JxW_values);
 
@@ -157,8 +152,7 @@ HeatTransfer<dim>::assemble_system(
   std::vector<double>         present_temperature_values(n_q_points);
   std::vector<Tensor<1, dim>> temperature_gradients(n_q_points);
   std::vector<double>         present_temperature_laplacians(n_q_points);
-  std::vector<double>         present_face_temperature_values(
-    face_quadrature_formula.size());
+  std::vector<double>         present_face_temperature_values(this->face_quadrature.size());
 
   // Values for backward Euler scheme
   std::vector<double> p1_temperature_values(n_q_points);
@@ -496,13 +490,9 @@ HeatTransfer<dim>::calculate_L2_error()
 {
   auto mpi_communicator = triangulation->get_communicator();
 
-
-  QGauss<dim>         quadrature_formula(fe.degree + 2);
-  const MappingQ<dim> mapping(
-    fe.degree, simulation_parameters.fem_parameters.qmapping_all);
-  FEValues<dim> fe_values(mapping,
+  FEValues<dim> fe_values(this->temperature_mapping,
                           fe,
-                          quadrature_formula,
+                          this->error_quadrature,
                           update_values | update_gradients |
                             update_quadrature_points | update_JxW_values);
 
@@ -514,7 +504,7 @@ HeatTransfer<dim>::calculate_L2_error()
   std::vector<types::global_dof_index> local_dof_indices(
     dofs_per_cell); //  Local connectivity
 
-  const unsigned int n_q_points = quadrature_formula.size();
+  const unsigned int n_q_points = this->error_quadrature.size();
 
   std::vector<double> q_exact_solution(n_q_points);
   std::vector<double> q_scalar_values(n_q_points);
@@ -805,8 +795,7 @@ template <int dim>
 void
 HeatTransfer<dim>::set_initial_conditions()
 {
-  MappingQ<dim> mapping(fe.degree);
-  VectorTools::interpolate(mapping,
+  VectorTools::interpolate(this->temperature_mapping,
                            dof_handler,
                            simulation_parameters.initial_condition->temperature,
                            newton_update);
