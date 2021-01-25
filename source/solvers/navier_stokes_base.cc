@@ -73,6 +73,8 @@ NavierStokesBase<dim, VectorType, DofsType>::NavierStokesBase(
   , cell_quadrature(this->number_quadrature_points + 1)
   , face_quadrature(this->number_quadrature_points + 1)
 {
+  // use "p_nsparam.mesh.simplex" to check if simplex mode
+
   this->pcout.set_condition(
     Utilities::MPI::this_mpi_process(this->mpi_communicator) == 0);
 
