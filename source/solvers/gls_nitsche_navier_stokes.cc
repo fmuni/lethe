@@ -304,6 +304,9 @@ GLSNitscheNavierStokesSolver<dim, spacedim>::solve()
     this->simulation_parameters.restart_parameters.restart,
     this->simulation_parameters.boundary_conditions);
 
+  if (this->simulation_parameters.restart_parameters.restart == true)
+    read_checkpoint();
+
   this->setup_dofs();
   this->set_initial_condition(
     this->simulation_parameters.initial_condition->type,
@@ -351,6 +354,15 @@ GLSNitscheNavierStokesSolver<dim, spacedim>::solve()
         }
 
       this->finish_time_step();
+
+      // Check-pointing to restart the simulation
+      if (this->simulation_parameters.restart_parameters.checkpoint &&
+          this->simulation_control->get_step_number() %
+              this->simulation_parameters.restart_parameters.frequency ==
+            0)
+        {
+          write_checkpoint();
+        }
     }
   if (this->simulation_parameters.test.enabled)
     solid.print_particle_positions();
