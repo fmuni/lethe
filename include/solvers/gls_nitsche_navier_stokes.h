@@ -103,6 +103,9 @@ private:
   virtual void
   write_checkpoint();
 
+  virtual void
+  read_checkpoint();
+
   SolidBase<dim, spacedim> solid;
   PVDHandler               pvdhandler_solid_triangulation;
   PVDHandler               pvdhandler_solid_particles;

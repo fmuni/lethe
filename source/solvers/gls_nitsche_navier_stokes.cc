@@ -463,6 +463,57 @@ GLSNitscheNavierStokesSolver<dim, spacedim>::write_checkpoint()
   output << oss.str() << std::endl;
 }
 
+template <int dim, int spacedim>
+void
+GLSNitscheNavierStokesSolver<dim, spacedim>::read_checkpoint()
+{
+  TimerOutput::Scope timer(this->computing_timer, "read_checkpoint");
+  std::string prefix = this->simulation_parameters.restart_parameters.filename;
+  this->simulation_control->read(prefix);
+  pvdhandler_solid_particles.read(prefix);
+
+  std::shared_ptr<Particles::ParticleHandler<spacedim>> solid_ph =
+    solid.get_solid_particle_handler();
+
+  this->triangulation->signals.post_distributed_load.connect(std::bind(
+    &Particles::ParticleHandler<spacedim>::register_load_callback_function,
+    solid_ph,
+    true));
+
+  // Gather particle serialization information
+  std::string   particle_filename = prefix + ".particles";
+  std::ifstream input(particle_filename.c_str());
+  AssertThrow(input, ExcFileNotOpen(particle_filename));
+
+  std::string buffer;
+  std::getline(input, buffer);
+  std::istringstream            iss(buffer);
+  boost::archive::text_iarchive ia(iss, boost::archive::no_header);
+
+  ia >> *solid_ph;
+
+  const std::string filename = prefix + ".triangulation";
+  std::ifstream     in(filename.c_str());
+  if (!in)
+    AssertThrow(false,
+                ExcMessage(
+                  std::string(
+                    "You are trying to restart a previous computation, "
+                    "but the restart file <") +
+                  filename + "> does not appear to exist!"));
+
+  //  try
+  //    {
+  //      this->triangulation.load(filename.c_str());
+  //    }
+  //  catch (...)
+  //    {
+  //      AssertThrow(false,
+  //                  ExcMessage("Cannot open snapshot mesh file or read the "
+  //                             "triangulation stored there."));
+  //    }
+}
+
 // Pre-compile the 2D and 3D Navier-Stokes solver to ensure that the library
 // is valid before we actually compile the solver This greatly helps with
 // debugging
