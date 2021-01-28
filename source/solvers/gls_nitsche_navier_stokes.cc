@@ -448,31 +448,60 @@ GLSNitscheNavierStokesSolver<dim, spacedim>::write_checkpoint()
 {
   TimerOutput::Scope timer(this->computing_timer, "write_checkpoint");
 
-  this->pcout << "Writing restart file" << std::endl;
+  this->pcout << "Writing restart file for gls_nitsche" << std::endl;
 
   std::string prefix = this->simulation_parameters.restart_parameters.filename;
+  // Write data in paraview format (pvd)
+  this->pcout << "Write data in paraview format..." << std::endl;
   if (Utilities::MPI::this_mpi_process(this->mpi_communicator) == 0)
     {
       this->simulation_control->save(prefix);
-      pvdhandler_solid_particles.save(prefix);
+      // Navier-Stokes
+      this->pvdhandler.save(prefix);
+      // Nitche
+      pvdhandler_solid_particles.save(prefix + "_nitsche_particles");
+      pvdhandler_solid_triangulation.save(prefix + "_nitsche_triangulation");
     }
 
+  // Save Nitsche solid particles
+  this->pcout << "Save Nitsche solid particles..." << std::endl;
   std::shared_ptr<Particles::ParticleHandler<spacedim>> solid_ph =
     solid.get_solid_particle_handler();
-
-  this->triangulation->signals.pre_distributed_save.connect(std::bind(
-    &Particles::ParticleHandler<spacedim>::register_store_callback_function,
-    solid_ph));
 
   std::ostringstream            oss;
   boost::archive::text_oarchive oa(oss, boost::archive::no_header);
   oa << *solid_ph;
-  //  this->triangulation.save(prefix + ".triangulation");
 
   // Write additional particle information for deserialization
+  this->pcout << "Write additional particle information for deserialization..."
+              << std::endl;
   std::string   particle_filename = prefix + ".particles";
   std::ofstream output(particle_filename.c_str());
   output << oss.str() << std::endl;
+
+  // Save Nitsche triangulation with connexion to particles
+  this->pcout << "Save Nitsche triangulation with connexion to particles..."
+              << std::endl;
+  this->triangulation->signals.pre_distributed_save.connect(std::bind(
+    &Particles::ParticleHandler<spacedim>::register_store_callback_function,
+    solid_ph));
+
+  const std::string filename = prefix + "_nitsche.triangulation";
+  if (auto tria = dynamic_cast<parallel::distributed::Triangulation<dim> *>(
+        this->triangulation.get()))
+    {
+      std::string triangulationNameNitsche = filename;
+      tria->save(filename);
+    }
+
+  this->multiphysics->write_checkpoint();
+
+  //  // Save Navier-Stokes past and present solution
+  //  std::vector<const VectorType *> sol_set_transfer;
+  //  sol_set_transfer.push_back(&this->present_solution);
+  //  sol_set_transfer.push_back(&this->solution_m1);
+  //  sol_set_transfer.push_back(&this->solution_m2);
+  //  sol_set_transfer.push_back(&this->solution_m3);
 }
 
 template <int dim, int spacedim>
@@ -482,15 +511,15 @@ GLSNitscheNavierStokesSolver<dim, spacedim>::read_checkpoint()
   TimerOutput::Scope timer(this->computing_timer, "read_checkpoint");
   std::string prefix = this->simulation_parameters.restart_parameters.filename;
   this->simulation_control->read(prefix);
-  pvdhandler_solid_particles.read(prefix);
 
+  // Load Paraview data files
+  this->pvdhandler.read(prefix);
+  pvdhandler_solid_particles.read(prefix + "_nitsche_particles");
+  pvdhandler_solid_triangulation.read(prefix + "_nitsche_triangulation");
+
+  // Load Nitsche solid particles
   std::shared_ptr<Particles::ParticleHandler<spacedim>> solid_ph =
     solid.get_solid_particle_handler();
-
-  this->triangulation->signals.post_distributed_load.connect(std::bind(
-    &Particles::ParticleHandler<spacedim>::register_load_callback_function,
-    solid_ph,
-    true));
 
   // Gather particle serialization information
   std::string   particle_filename = prefix + ".particles";
@@ -504,7 +533,13 @@ GLSNitscheNavierStokesSolver<dim, spacedim>::read_checkpoint()
 
   ia >> *solid_ph;
 
-  const std::string filename = prefix + ".triangulation";
+  // Load Nitsche triangulation with connexion to particles
+  this->triangulation->signals.post_distributed_load.connect(std::bind(
+    &Particles::ParticleHandler<spacedim>::register_load_callback_function,
+    solid_ph,
+    true));
+
+  const std::string filename = prefix + "_nitsche.triangulation";
   std::ifstream     in(filename.c_str());
   if (!in)
     AssertThrow(false,
@@ -514,16 +549,20 @@ GLSNitscheNavierStokesSolver<dim, spacedim>::read_checkpoint()
                     "but the restart file <") +
                   filename + "> does not appear to exist!"));
 
-  //  try
-  //    {
-  //      this->triangulation.load(filename.c_str());
-  //    }
-  //  catch (...)
-  //    {
-  //      AssertThrow(false,
-  //                  ExcMessage("Cannot open snapshot mesh file or read the "
-  //                             "triangulation stored there."));
-  //    }
+  try
+    {
+      if (auto tria = dynamic_cast<parallel::distributed::Triangulation<dim> *>(
+            this->triangulation.get()))
+        tria->load(filename.c_str());
+    }
+  catch (...)
+    {
+      AssertThrow(false,
+                  ExcMessage("Cannot open snapshot mesh file or read the "
+                             "triangulation stored there."));
+    }
+
+  this->multiphysics->read_checkpoint();
 }
 
 // Pre-compile the 2D and 3D Navier-Stokes solver to ensure that the library
