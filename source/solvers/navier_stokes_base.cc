@@ -377,10 +377,13 @@ NavierStokesBase<dim, VectorType, DofsType>::finish_time_step_fd()
       this->simulation_control->set_CFL(CFL);
     }
   if (this->simulation_parameters.restart_parameters.checkpoint &&
+      simulation_control->get_step_number() != 0 &&
       simulation_control->get_step_number() %
           this->simulation_parameters.restart_parameters.frequency ==
         0)
     {
+      this->pcout << "Writing restart file FROM navier_stokes_base"
+                  << std::endl;
       this->write_checkpoint();
     }
 
@@ -1263,7 +1266,6 @@ NavierStokesBase<dim, VectorType, DofsType>::write_checkpoint()
   if (auto tria = dynamic_cast<parallel::distributed::Triangulation<dim> *>(
         this->triangulation.get()))
     {
-      std::string triangulationName = prefix + ".triangulation";
       tria->save(prefix + ".triangulation");
     }
 }

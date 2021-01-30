@@ -92,6 +92,12 @@ public:
   get_solid_particle_handler();
 
   /**
+   * @return shared_ptr of the solid triangulation
+   */
+  std::shared_ptr<parallel::DistributedTriangulationBase<dim, spacedim>>
+  get_solid_triangulation();
+
+  /**
    * @return the solid dof handler
    */
   DoFHandler<dim, spacedim> &

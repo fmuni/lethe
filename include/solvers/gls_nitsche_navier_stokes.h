@@ -101,10 +101,10 @@ private:
    * @brief Write a gls_nitsche simulation checkpointing to allow for gls_nitsche simulation restart
    */
   virtual void
-  write_checkpoint();
+  write_checkpoint() override;
 
   virtual void
-  read_checkpoint();
+  read_checkpoint() override;
 
   SolidBase<dim, spacedim> solid;
   PVDHandler               pvdhandler_solid_triangulation;

@@ -188,6 +188,13 @@ SolidBase<dim, spacedim>::get_solid_particle_handler()
 }
 
 template <int dim, int spacedim>
+std::shared_ptr<parallel::DistributedTriangulationBase<dim, spacedim>>
+SolidBase<dim, spacedim>::get_solid_triangulation()
+{
+  return solid_tria;
+}
+
+template <int dim, int spacedim>
 Function<spacedim> *
 SolidBase<dim, spacedim>::get_solid_velocity()
 {

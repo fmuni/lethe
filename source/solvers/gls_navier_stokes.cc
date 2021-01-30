@@ -835,6 +835,7 @@ GLSNavierStokesSolver<dim>::set_initial_condition_fd(
       this->pcout << "************************" << std::endl;
       this->pcout << "---> Simulation Restart " << std::endl;
       this->pcout << "************************" << std::endl;
+      this->pcout << "Read checkpoint FROM gls_navier_stokes..." << std::endl;
       this->read_checkpoint();
     }
   else if (initial_condition_type ==
