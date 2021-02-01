@@ -105,33 +105,33 @@ HeatTransfer<dim>::assemble_system(
   auto &source_term = simulation_parameters.sourceTerm->heat_transfer_source;
   source_term.set_time(simulation_control->get_current_time());
 
-  FEValues<dim>     fe_values_ht(fe,
-                             this->cell_quadrature,
+  FEValues<dim>     fe_values_ht(*fe,
+                             *this->cell_quadrature,
                              update_values | update_gradients |
                                update_quadrature_points | update_JxW_values |
                                update_hessians);
 
   auto &evaluation_point = this->get_evaluation_point();
 
-  const unsigned int dofs_per_cell = fe.dofs_per_cell;
+  const unsigned int dofs_per_cell = fe->dofs_per_cell;
 
   FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
   Vector<double>     cell_rhs(dofs_per_cell);
   std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
-  const unsigned int                   n_q_points = this->cell_quadrature.size();
+  const unsigned int                   n_q_points = this->cell_quadrature->size();
   std::vector<double>                  source_term_values(n_q_points);
 
 
   const DoFHandler<dim> *dof_handler_fluid =
     multiphysics->get_dof_handler(PhysicsID::fluid_dynamics);
   FEValues<dim> fe_values_flow(dof_handler_fluid->get_fe(),
-                               this->cell_quadrature,
+                               *this->cell_quadrature,
                                update_values | update_quadrature_points |
                                  update_gradients);
 
   // FaceValues for Robin boundary condition
-  FEFaceValues<dim> fe_face_values_ht(fe,
-                                      this->face_quadrature,
+  FEFaceValues<dim> fe_face_values_ht(*fe,
+                                      *this->face_quadrature,
                                       update_values | update_quadrature_points |
                                         update_JxW_values);
 
@@ -152,7 +152,7 @@ HeatTransfer<dim>::assemble_system(
   std::vector<double>         present_temperature_values(n_q_points);
   std::vector<Tensor<1, dim>> temperature_gradients(n_q_points);
   std::vector<double>         present_temperature_laplacians(n_q_points);
-  std::vector<double>         present_face_temperature_values(this->face_quadrature.size());
+  std::vector<double>         present_face_temperature_values(this->face_quadrature->size());
 
   // Values for backward Euler scheme
   std::vector<double> p1_temperature_values(n_q_points);
@@ -168,9 +168,9 @@ HeatTransfer<dim>::assemble_system(
           double h    = 0;
 
           if (dim == 2)
-            h = std::sqrt(4. * cell->measure() / M_PI) / fe.degree;
+            h = std::sqrt(4. * cell->measure() / M_PI) / fe->degree;
           else if (dim == 3)
-            h = pow(6 * cell->measure() / M_PI, 1. / 3.) / fe.degree;
+            h = pow(6 * cell->measure() / M_PI, 1. / 3.) / fe->degree;
 
           fe_values_ht.reinit(cell);
 
@@ -490,21 +490,21 @@ HeatTransfer<dim>::calculate_L2_error()
 {
   auto mpi_communicator = triangulation->get_communicator();
 
-  FEValues<dim> fe_values(this->temperature_mapping,
-                          fe,
-                          this->error_quadrature,
+  FEValues<dim> fe_values(*this->temperature_mapping,
+                          *fe,
+                          *this->error_quadrature,
                           update_values | update_gradients |
                             update_quadrature_points | update_JxW_values);
 
 
 
   const unsigned int dofs_per_cell =
-    fe.dofs_per_cell; // This gives you dofs per cell
+    fe->dofs_per_cell; // This gives you dofs per cell
 
   std::vector<types::global_dof_index> local_dof_indices(
     dofs_per_cell); //  Local connectivity
 
-  const unsigned int n_q_points = this->error_quadrature.size();
+  const unsigned int n_q_points = this->error_quadrature->size();
 
   std::vector<double> q_exact_solution(n_q_points);
   std::vector<double> q_scalar_values(n_q_points);
@@ -694,7 +694,7 @@ template <int dim>
 void
 HeatTransfer<dim>::setup_dofs()
 {
-  dof_handler.distribute_dofs(fe);
+  dof_handler.distribute_dofs(*fe);
   DoFRenumbering::Cuthill_McKee(this->dof_handler);
 
   auto mpi_communicator = triangulation->get_communicator();
@@ -795,7 +795,7 @@ template <int dim>
 void
 HeatTransfer<dim>::set_initial_conditions()
 {
-  VectorTools::interpolate(this->temperature_mapping,
+  VectorTools::interpolate(*this->temperature_mapping,
                            dof_handler,
                            simulation_parameters.initial_condition->temperature,
                            newton_update);
