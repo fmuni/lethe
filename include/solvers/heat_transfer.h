@@ -64,7 +64,7 @@ public:
     , solution_transfer_m2(dof_handler)
     , solution_transfer_m3(dof_handler)
     , temperature_mapping(fe.degree, simulation_parameters.fem_parameters.qmapping_all)
-    , cell_quadrature(fe.degree)
+    , cell_quadrature(fe.degree + 1)
     , face_quadrature(fe.degree + 1)
     , error_quadrature(fe.degree + 2)
   {}
