@@ -70,7 +70,7 @@ NavierStokesBase<dim, VectorType, DofsType>::NavierStokesBase(
                      this->simulation_parameters.fem_parameters.qmapping_all)
   , pressure_mapping(this->pressure_fem_degree,
                      this->simulation_parameters.fem_parameters.qmapping_all)
-  , cell_quadrature(this->number_quadrature_points + 1)
+  , cell_quadrature(this->number_quadrature_points    )
   , face_quadrature(this->number_quadrature_points + 1)
 {
   // use "p_nsparam.mesh.simplex" to check if simplex mode
