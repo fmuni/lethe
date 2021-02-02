@@ -83,7 +83,7 @@ NavierStokesBase<dim, VectorType, DofsType>::NavierStokesBase(
         pressure_mapping = std::make_shared<MappingQ<dim>>(this->pressure_fem_degree,
                 simulation_parameters.fem_parameters.qmapping_all);
         cell_quadrature = std::make_shared<QGauss<dim>>(this->number_quadrature_points);
-        face_quadrature = std::make_shared<QGauss<dim-1>>(this->number_quadrature_points);
+        face_quadrature = std::make_shared<QGauss<dim-1>>(this->number_quadrature_points + 1);
     }
 
   this->pcout.set_condition(
