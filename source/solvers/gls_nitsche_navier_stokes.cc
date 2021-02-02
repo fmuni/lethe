@@ -504,22 +504,16 @@ GLSNitscheNavierStokesSolver<dim, spacedim>::write_checkpoint()
   std::shared_ptr<parallel::DistributedTriangulationBase<dim, spacedim>>
     solid_tria = solid.get_solid_triangulation();
 
-  //  solid_tria->signals.pre_distributed_save.connect(std::bind(
-  //    &Particles::ParticleHandler<dim>::register_store_callback_function,
-  //    solid_ph));
-  //  solid_tria->save(prefix + "_solid.triangulation");
-  auto &tria = dynamic_cast<parallel::distributed::Triangulation<spacedim> *>(
-    solid.get_solid_triangulation());
-
-  //  if (auto &tria =
-  //        *dynamic_cast<parallel::distributed::Triangulation<spacedim> *>(
-  //          solid_tria))
-  //    {
-  //      tria->signals.pre_distributed_save.connect(std::bind(
-  //        &Particles::ParticleHandler<spacedim>::register_store_callback_function,
-  //        solid_ph));
-  //      tria->save(prefix + "_solid.triangulation");
-  //    }
+  if (auto tria =
+        dynamic_cast<parallel::distributed::Triangulation<spacedim> *>(
+          solid.get_solid_triangulation().get()))
+    {
+      tria->signals.pre_distributed_save.connect(std::bind(
+        &Particles::ParticleHandler<spacedim>::register_store_callback_function,
+        solid_ph));
+      tria->save(prefix + "_solid.triangulation");
+    }
+  this->pcout << "... Restart written!" << std::endl;
 }
 
 template <int dim, int spacedim>
@@ -587,47 +581,44 @@ GLSNitscheNavierStokesSolver<dim, spacedim>::read_checkpoint()
     {
       AssertThrow(false,
                   ExcMessage("Cannot open snapshot mesh file or read the "
-                             "triangulation stored there."));
+                             "fluid triangulation stored there."));
     }
 
   // Load solid triangulation with connexion to particles
   this->pcout << "... Load solid triangulation with connexion to particles..."
               << std::endl;
 
-  //  std::shared_ptr<parallel::DistributedTriangulationBase<dim, spacedim>>
-  //    solid_tria = solid.get_solid_triangulation();
+  const std::string filename_solid = prefix + "_solid.triangulation";
+  std::ifstream     in_solid(filename_solid.c_str());
+  if (!in_solid)
+    AssertThrow(false,
+                ExcMessage(
+                  std::string(
+                    "You are trying to restart a previous computation, "
+                    "but the restart file <") +
+                  filename_solid + "> does not appear to exist!"));
 
-
-  //  const std::string filename_solid = prefix + "_solid.triangulation";
-  //  std::ifstream     in_solid(filename_solid.c_str());
-  //  if (!in_solid)
-  //    AssertThrow(false,
-  //                ExcMessage(
-  //                  std::string(
-  //                    "You are trying to restart a previous computation, "
-  //                    "but the restart file <") +
-  //                  filename_solid + "> does not appear to exist!"));
-
-  //  try
-  //    {
-  //      if (auto tria =
-  //            dynamic_cast<parallel::distributed::Triangulation<spacedim> *>(
-  //              solid.get_solid_triangulation()))
-  //        {
-  //          tria->signals.post_distributed_load.connect(
-  //            std::bind(&Particles::ParticleHandler<
-  //                        spacedim>::register_load_callback_function,
-  //                      solid_ph,
-  //                      true));
-  //          tria->load(filename_solid.c_str());
-  //        }
-  //    }
-  //  catch (...)
-  //    {
-  //      AssertThrow(false,
-  //                  ExcMessage("Cannot open snapshot mesh file or read the "
-  //                             "triangulation stored there."));
-  //    }
+  try
+    {
+      if (auto tria =
+            dynamic_cast<parallel::distributed::Triangulation<spacedim> *>(
+              solid.get_solid_triangulation().get()))
+        {
+          tria->load(filename_solid.c_str());
+          this->pcout << "... filename_solid loaded..." << std::endl;
+          tria->signals.post_distributed_load.connect(
+            std::bind(&Particles::ParticleHandler<
+                        spacedim>::register_load_callback_function,
+                      solid_ph,
+                      true));
+        }
+    }
+  catch (...)
+    {
+      AssertThrow(false,
+                  ExcMessage("Cannot open snapshot mesh file or read the "
+                             "particle triangulation stored there."));
+    }
 
   // Setup Navier-Stokes trans vectors
   this->setup_dofs();
@@ -656,6 +647,7 @@ GLSNitscheNavierStokesSolver<dim, spacedim>::read_checkpoint()
 
   this->pcout << "... Multiphysics read_checkpoint..." << std::endl;
   this->multiphysics->read_checkpoint();
+  this->pcout << "... Checkpoint read!" << std::endl;
 }
 
 // Pre-compile the 2D and 3D Navier-Stokes solver to ensure that the library
