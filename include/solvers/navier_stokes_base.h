@@ -74,6 +74,7 @@
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_system.h>
 #include <deal.II/fe/fe_values.h>
+#include <deal.II/fe/mapping_fe.h>
 #include <deal.II/fe/mapping_q.h>
 
 // Numerics
@@ -82,6 +83,10 @@
 #include <deal.II/numerics/matrix_tools.h>
 #include <deal.II/numerics/solution_transfer.h>
 #include <deal.II/numerics/vector_tools.h>
+
+//Simplex
+#include <deal.II/simplex/fe_lib.h>
+#include <deal.II/simplex/quadrature_lib.h>
 
 // Distributed
 #include <deal.II/distributed/grid_refinement.h>
@@ -436,7 +441,7 @@ protected:
 
   std::shared_ptr<parallel::DistributedTriangulationBase<dim>> triangulation;
   DoFHandler<dim>                                              dof_handler;
-  FESystem<dim>                                                fe;
+  std::shared_ptr<FESystem<dim>>                               fe;
 
   TimerOutput computing_timer;
 
@@ -475,11 +480,10 @@ protected:
   unsigned int       number_quadrature_points;
 
   // Mappings and Quadratures
-  const MappingQ<dim>   velocity_mapping;
-  const MappingQ<dim>   pressure_mapping;
-  const QGauss<dim>     cell_quadrature;
-  const QGauss<dim - 1> face_quadrature;
-
+  std::shared_ptr<Mapping<dim>>   velocity_mapping;
+  std::shared_ptr<Mapping<dim>>   pressure_mapping;
+  std::shared_ptr<Quadrature<dim>>     cell_quadrature;
+  std::shared_ptr<Quadrature<dim - 1>> face_quadrature;
 
   // Multiphysics interface
   std::shared_ptr<MultiphysicsInterface<dim>> multiphysics;

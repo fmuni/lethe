@@ -62,7 +62,7 @@ GLSNavierStokesSolver<dim>::setup_dofs_fd()
   // Now reset system matrix
   system_matrix.clear();
 
-  this->dof_handler.distribute_dofs(this->fe);
+  this->dof_handler.distribute_dofs(*this->fe);
   DoFRenumbering::Cuthill_McKee(this->dof_handler);
 
   this->locally_owned_dofs = this->dof_handler.locally_owned_dofs();
@@ -86,12 +86,12 @@ GLSNavierStokesSolver<dim>::setup_dofs_fd()
             BoundaryConditions::BoundaryType::noslip)
           {
             VectorTools::interpolate_boundary_values(
-              this->velocity_mapping,
+              *this->velocity_mapping,
               this->dof_handler,
               this->simulation_parameters.boundary_conditions.id[i_bc],
               dealii::Functions::ZeroFunction<dim>(dim + 1),
               nonzero_constraints,
-              this->fe.component_mask(velocities));
+              this->fe->component_mask(velocities));
           }
         else if (this->simulation_parameters.boundary_conditions.type[i_bc] ==
                  BoundaryConditions::BoundaryType::slip)
@@ -109,7 +109,7 @@ GLSNavierStokesSolver<dim>::setup_dofs_fd()
                  BoundaryConditions::BoundaryType::function)
           {
             VectorTools::interpolate_boundary_values(
-              this->velocity_mapping,
+              *this->velocity_mapping,
               this->dof_handler,
               this->simulation_parameters.boundary_conditions.id[i_bc],
               NavierStokesFunctionDefined<dim>(
@@ -123,7 +123,7 @@ GLSNavierStokesSolver<dim>::setup_dofs_fd()
                    .bcFunctions[i_bc]
                    .w),
               nonzero_constraints,
-              this->fe.component_mask(velocities));
+              this->fe->component_mask(velocities));
           }
 
         else if (this->simulation_parameters.boundary_conditions.type[i_bc] ==
@@ -177,12 +177,12 @@ GLSNavierStokesSolver<dim>::setup_dofs_fd()
              // || Parameters::function)
           {
             VectorTools::interpolate_boundary_values(
-              this->velocity_mapping,
+              *this->velocity_mapping,
               this->dof_handler,
               this->simulation_parameters.boundary_conditions.id[i_bc],
               dealii::Functions::ZeroFunction<dim>(dim + 1),
               this->zero_constraints,
-              this->fe.component_mask(velocities));
+              this->fe->component_mask(velocities));
           }
       }
   }
@@ -232,7 +232,7 @@ GLSNavierStokesSolver<dim>::setup_dofs_fd()
 
       this->average_velocities.initialize_vectors(this->locally_owned_dofs,
                                                   this->locally_relevant_dofs,
-                                                  this->fe.n_dofs_per_vertex(),
+                                                  this->fe->n_dofs_per_vertex(),
                                                   this->mpi_communicator);
 
       if (this->simulation_parameters.restart_parameters.checkpoint)
@@ -274,14 +274,14 @@ GLSNavierStokesSolver<dim>::assembleGLS()
   double viscosity = this->simulation_parameters.physical_properties.viscosity;
   Function<dim> *l_forcing_function = this->forcing_function;
 
-  FEValues<dim>                    fe_values(this->velocity_mapping,
-                          this->fe,
-                          this->cell_quadrature,
+  FEValues<dim>                    fe_values(*this->velocity_mapping,
+                          *this->fe,
+                          *this->cell_quadrature,
                           update_values | update_quadrature_points |
                             update_JxW_values | update_gradients |
                             update_hessians);
-  const unsigned int               dofs_per_cell = this->fe.dofs_per_cell;
-  const unsigned int               n_q_points    = this->cell_quadrature.size();
+  const unsigned int               dofs_per_cell = this->fe->dofs_per_cell;
+  const unsigned int               n_q_points    = this->cell_quadrature->size();
   const FEValuesExtractors::Vector velocities(0);
   const FEValuesExtractors::Scalar pressure(dim);
   FullMatrix<double>               local_matrix(dofs_per_cell, dofs_per_cell);
@@ -471,7 +471,7 @@ GLSNavierStokesSolver<dim>::assembleGLS()
               for (int i = 0; i < dim; ++i)
                 {
                   const unsigned int component_i =
-                    this->fe.system_to_component_index(i).first;
+                    this->fe->system_to_component_index(i).first;
                   force[i] = rhs_force[q](component_i);
                 }
               // Correct force to include the dynamic forcing term for flow
@@ -868,13 +868,13 @@ GLSNavierStokesSolver<dim>::assemble_L2_projection()
 {
   system_matrix    = 0;
   this->system_rhs = 0;
-  FEValues<dim>               fe_values(this->velocity_mapping,
-                          this->fe,
-                          this->cell_quadrature,
+  FEValues<dim>               fe_values(*this->velocity_mapping,
+                         *this->fe,
+                          *this->cell_quadrature,
                           update_values | update_quadrature_points |
                             update_JxW_values);
-  const unsigned int          dofs_per_cell = this->fe.dofs_per_cell;
-  const unsigned int          n_q_points    = this->cell_quadrature.size();
+  const unsigned int          dofs_per_cell = this->fe->dofs_per_cell;
+  const unsigned int          n_q_points    = this->cell_quadrature->size();
   FullMatrix<double>          local_matrix(dofs_per_cell, dofs_per_cell);
   Vector<double>              local_rhs(dofs_per_cell);
   std::vector<Vector<double>> initial_velocity(n_q_points,
@@ -910,7 +910,7 @@ GLSNavierStokesSolver<dim>::assemble_L2_projection()
               for (int i = 0; i < dim; ++i)
                 {
                   const unsigned int component_i =
-                    this->fe.system_to_component_index(i).first;
+                    this->fe->system_to_component_index(i).first;
                   rhs_initial_velocity_pressure[i] =
                     initial_velocity[q](component_i);
                 }

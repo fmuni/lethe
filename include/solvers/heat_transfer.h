@@ -39,7 +39,6 @@
 #include <deal.II/lac/trilinos_vector.h>
 
 #include <deal.II/simplex/fe_lib.h>
-#include <deal.II/simplex/grid_generator.h>//Probably useless here
 #include <deal.II/simplex/quadrature_lib.h>
 
 #include <core/simulation_control.h>
