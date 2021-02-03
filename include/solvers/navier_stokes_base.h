@@ -91,6 +91,7 @@
 // Distributed
 #include <deal.II/distributed/grid_refinement.h>
 #include <deal.II/distributed/solution_transfer.h>
+#include <deal.II/distributed/fully_distributed_tria.h>
 
 
 // Lethe Includes

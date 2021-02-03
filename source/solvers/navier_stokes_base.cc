@@ -46,13 +46,7 @@ NavierStokesBase<dim, VectorType, DofsType>::NavierStokesBase(
   , mpi_communicator(MPI_COMM_WORLD)
   , n_mpi_processes(Utilities::MPI::n_mpi_processes(mpi_communicator))
   , this_mpi_process(Utilities::MPI::this_mpi_process(mpi_communicator))
-  , triangulation(dynamic_cast<parallel::DistributedTriangulationBase<dim> *>(
-      new parallel::distributed::Triangulation<dim>(
-        this->mpi_communicator,
-        typename Triangulation<dim>::MeshSmoothing(
-          Triangulation<dim>::smoothing_on_refinement |
-          Triangulation<dim>::smoothing_on_coarsening))))
-  , dof_handler(*this->triangulation)
+  , dof_handler()
   , computing_timer(this->mpi_communicator,
                     this->pcout,
                     TimerOutput::summary,
@@ -65,6 +59,12 @@ NavierStokesBase<dim, VectorType, DofsType>::NavierStokesBase(
 {
       if (simulation_parameters.mesh.simplex){
         // for simplex meshes
+          triangulation = std::make_shared<parallel::fullydistributed::Triangulation<dim>>(
+                  this->mpi_communicator);
+                  //,typename Triangulation<dim>::MeshSmoothing(
+                          //Triangulation<dim>::smoothing_on_refinement |
+                          //Triangulation<dim>::smoothing_on_coarsening)));
+
         const Simplex::FE_P<dim> velocity_fe(p_nsparam.fem_parameters.velocity_order);
         const Simplex::FE_P<dim> pressure_fe(p_nsparam.fem_parameters.pressure_order);
         fe = std::make_shared<FESystem<dim>>(velocity_fe, dim, pressure_fe, 1);
@@ -74,6 +74,11 @@ NavierStokesBase<dim, VectorType, DofsType>::NavierStokesBase(
         face_quadrature = std::make_shared<Simplex::QGauss<dim-1>>(this->number_quadrature_points);
     } else {
         //Usual case, for quad/hex meshes
+          triangulation = std::make_shared<parallel::distributed::Triangulation<dim>>(
+                  this->mpi_communicator,
+                  typename Triangulation<dim>::MeshSmoothing(
+                          Triangulation<dim>::smoothing_on_refinement |
+                          Triangulation<dim>::smoothing_on_coarsening));
         fe = std::make_shared<FESystem<dim>>(FE_Q<dim>(p_nsparam.fem_parameters.velocity_order),
                                              dim,
                                              FE_Q<dim>(p_nsparam.fem_parameters.pressure_order),
@@ -85,6 +90,7 @@ NavierStokesBase<dim, VectorType, DofsType>::NavierStokesBase(
         cell_quadrature = std::make_shared<QGauss<dim>>(this->number_quadrature_points);
         face_quadrature = std::make_shared<QGauss<dim-1>>(this->number_quadrature_points + 1);
     }
+    dof_handler.initialize(*this->triangulation,*this->fe);
 
   this->pcout.set_condition(
     Utilities::MPI::this_mpi_process(this->mpi_communicator) == 0);
