@@ -510,7 +510,7 @@ GLSNitscheNavierStokesSolver<dim, spacedim>::write_checkpoint()
     {
       tria->signals.pre_distributed_save.connect(std::bind(
         &Particles::ParticleHandler<spacedim>::register_store_callback_function,
-        solid_ph));
+        solid_ph)); //à revoir, connecter le ParticleHandler approprié
       tria->save(prefix + "_solid.triangulation");
     }
   this->pcout << "... Restart written!" << std::endl;
